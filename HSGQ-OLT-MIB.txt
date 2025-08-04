@@ -1,0 +1,362 @@
+HSGQ-OLT-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE,
+    enterprises, Integer32, Counter32, Gauge32, 
+    TimeTicks, IpAddress, OBJECT-IDENTITY, Unsigned32
+        FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, DisplayString, MacAddress
+        FROM SNMPv2-TC
+    ifIndex, InterfaceIndex
+        FROM IF-MIB
+    SnmpAdminString
+        FROM SNMP-FRAMEWORK-MIB
+    RowStatus
+        FROM SNMPv2-TC;
+
+hsgq MODULE-IDENTITY
+    LAST-UPDATED "202508050000Z"  -- 5 Agustus 2025, 00:00 UTC
+    ORGANIZATION "HSGQ Enterprises"
+    CONTACT-INFO
+        "HSGQ Technical Support
+         Email: support@hsgq.com
+         Phone: +86-25-12345678"
+    DESCRIPTION
+        "MIB module for HSGQ OLT devices management"
+    REVISION "202508050000Z"
+    DESCRIPTION "Added comprehensive monitoring and management features"
+    REVISION "202501010000Z"
+    DESCRIPTION "Initial version"
+    ::= { enterprises 50224 }  -- .1.3.6.1.4.1.50224
+
+-- Textual Conventions
+HsgqTemperature ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d-1"
+    STATUS      current
+    DESCRIPTION "Temperature in 0.1°C"
+    SYNTAX      Integer32 (-2730..10000)  -- -273.0°C to 100.0°C
+
+HsgqVoltage ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d-3"
+    STATUS      current
+    DESCRIPTION "Voltage in millivolts (mV)"
+    SYNTAX      Integer32 (0..50000)      -- 0V to 50V
+
+HsgqOpticalPower ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d-1"
+    STATUS      current
+    DESCRIPTION "Optical power in 0.1 dBm"
+    SYNTAX      Integer32 (-10000..10000) -- -100.0 dBm to +100.0 dBm
+
+HsgqOnuState ::= TEXTUAL-CONVENTION
+    STATUS      current
+    DESCRIPTION "Operational state of ONU"
+    SYNTAX      INTEGER {
+                    registering(1),
+                    operational(2),
+                    lost(3),
+                    deregistered(4)
+                }
+
+-- Main OID Structure
+hsgqSystem     OBJECT IDENTIFIER ::= { hsgq 1 }
+hsgqInterfaces OBJECT IDENTIFIER ::= { hsgq 2 }
+hsgqTraps      OBJECT IDENTIFIER ::= { hsgq 3 }
+hsgqOnuMgmt    OBJECT IDENTIFIER ::= { hsgq 4 }
+hsgqOptical    OBJECT IDENTIFIER ::= { hsgq 5 }
+hsgqQoS        OBJECT IDENTIFIER ::= { hsgq 6 }
+
+-- System Group
+hsgqSystemTemperature OBJECT-TYPE
+    SYNTAX      HsgqTemperature
+    UNITS       "0.1 Celsius"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Current system temperature"
+    ::= { hsgqSystem 1 }
+
+hsgqSystemTemperatureThreshold OBJECT-TYPE
+    SYNTAX      HsgqTemperature
+    UNITS       "0.1 Celsius"
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION "Temperature threshold for critical alarm"
+    DEFVAL      { 750 }  -- 75.0°C
+    ::= { hsgqSystem 2 }
+
+hsgqSystemVoltage OBJECT-TYPE
+    SYNTAX      HsgqVoltage
+    UNITS       "mV"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "System supply voltage"
+    ::= { hsgqSystem 3 }
+
+hsgqSystemRedundancyState OBJECT-TYPE
+    SYNTAX      INTEGER { active(1), standby(2), failed(3) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "OLT redundancy state"
+    ::= { hsgqSystem 4 }
+
+-- Critical Event Traps
+hsgqPortStateChange NOTIFICATION-TYPE
+    OBJECTS     { ifIndex, ifOperStatus }
+    STATUS      current
+    DESCRIPTION "Generated when interface operational state changes"
+    ::= { hsgqTraps 1 }
+
+hsgqTemperatureThreshold NOTIFICATION-TYPE
+    OBJECTS     { hsgqSystemTemperature }
+    STATUS      current
+    DESCRIPTION "Generated when device temperature exceeds threshold"
+    ::= { hsgqTraps 2 }
+
+hsgqOltFailover NOTIFICATION-TYPE
+    OBJECTS     { hsgqSystemRedundancyState }
+    STATUS      current
+    DESCRIPTION "Generated when OLT failover occurs"
+    ::= { hsgqTraps 3 }
+
+-- ONU Management
+hsgqOnuTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqOnuEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "Table of connected ONUs"
+    ::= { hsgqOnuMgmt 1 }
+
+hsgqOnuEntry OBJECT-TYPE
+    SYNTAX      HsgqOnuEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "Entry representing an ONU"
+    INDEX       { ifIndex, hsgqOnuMacAddress }
+    ::= { hsgqOnuTable 1 }
+
+HsgqOnuEntry ::= SEQUENCE {
+    hsgqOnuMacAddress     MacAddress,
+    hsgqOnuState          HsgqOnuState,
+    hsgqOnuDistance       Unsigned32,
+    hsgqOnuLastOnline     TimeTicks,
+    hsgqOnuRxPowerAtOlt   HsgqOpticalPower,
+    hsgqOnuTxPower        HsgqOpticalPower,
+    hsgqOnuRxPowerAtOnu   HsgqOpticalPower,
+    hsgqOnuVoltage        HsgqVoltage
+}
+
+hsgqOnuMacAddress OBJECT-TYPE
+    SYNTAX      MacAddress
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "MAC address of ONU"
+    ::= { hsgqOnuEntry 1 }
+
+hsgqOnuState OBJECT-TYPE
+    SYNTAX      HsgqOnuState
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Operational state of ONU"
+    ::= { hsgqOnuEntry 2 }
+
+hsgqOnuDistance OBJECT-TYPE
+    SYNTAX      Unsigned32 (0..100000)
+    UNITS       "meters"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Estimated distance to ONU"
+    ::= { hsgqOnuEntry 3 }
+
+hsgqOnuLastOnline OBJECT-TYPE
+    SYNTAX      TimeTicks
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Time since last online status"
+    ::= { hsgqOnuEntry 4 }
+
+hsgqOnuRxPowerAtOlt OBJECT-TYPE
+    SYNTAX      HsgqOpticalPower
+    UNITS       "0.1 dBm"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Received power from ONU at OLT"
+    ::= { hsgqOnuEntry 5 }
+
+hsgqOnuTxPower OBJECT-TYPE
+    SYNTAX      HsgqOpticalPower
+    UNITS       "0.1 dBm"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Transmit power of ONU"
+    ::= { hsgqOnuEntry 6 }
+
+hsgqOnuRxPowerAtOnu OBJECT-TYPE
+    SYNTAX      HsgqOpticalPower
+    UNITS       "0.1 dBm"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Received power at ONU"
+    ::= { hsgqOnuEntry 7 }
+
+hsgqOnuVoltage OBJECT-TYPE
+    SYNTAX      HsgqVoltage
+    UNITS       "mV"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Operating voltage of ONU"
+    ::= { hsgqOnuEntry 8 }
+
+-- Optical Power Monitoring
+hsgqOpticalTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqOpticalEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "Optical power monitoring table"
+    ::= { hsgqOptical 1 }
+
+hsgqOpticalEntry OBJECT-TYPE
+    SYNTAX      HsgqOpticalEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "Optical power entry per interface"
+    INDEX       { ifIndex }
+    ::= { hsgqOpticalTable 1 }
+
+HsgqOpticalEntry ::= SEQUENCE {
+    hsgqOpticalTxPower        HsgqOpticalPower,
+    hsgqOpticalRxPower        HsgqOpticalPower,
+    hsgqOpticalBiasCurrent    Integer32,
+    hsgqOpticalTemperature    HsgqTemperature
+}
+
+hsgqOpticalTxPower OBJECT-TYPE
+    SYNTAX      HsgqOpticalPower
+    UNITS       "0.1 dBm"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Transmit optical power"
+    ::= { hsgqOpticalEntry 1 }
+
+hsgqOpticalRxPower OBJECT-TYPE
+    SYNTAX      HsgqOpticalPower
+    UNITS       "0.1 dBm"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Received optical power"
+    ::= { hsgqOpticalEntry 2 }
+
+hsgqOpticalBiasCurrent OBJECT-TYPE
+    SYNTAX      Integer32 (0..200000)
+    UNITS       "uA"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Laser bias current"
+    ::= { hsgqOpticalEntry 3 }
+
+hsgqOpticalTemperature OBJECT-TYPE
+    SYNTAX      HsgqTemperature
+    UNITS       "0.1 Celsius"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Optical module temperature"
+    ::= { hsgqOpticalEntry 4 }
+
+-- QoS Configuration
+hsgqQosProfiles OBJECT IDENTIFIER ::= { hsgqQoS 1 }
+
+hsgqQosProfileTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqQosProfileEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "QoS profiles configuration"
+    ::= { hsgqQosProfiles 1 }
+
+hsgqQosProfileEntry OBJECT-TYPE
+    SYNTAX      HsgqQosProfileEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "QoS profile entry"
+    INDEX       { hsgqQosProfileIndex }
+    ::= { hsgqQosProfileTable 1 }
+
+HsgqQosProfileEntry ::= SEQUENCE {
+    hsgqQosProfileIndex        Unsigned32,
+    hsgqQosProfileName         SnmpAdminString,
+    hsgqQosProfilePriority     Integer32,
+    hsgqQosProfileMinBw        Unsigned32,
+    hsgqQosProfileMaxBw        Unsigned32,
+    hsgqQosProfileStatus       RowStatus
+}
+
+hsgqQosProfileIndex OBJECT-TYPE
+    SYNTAX      Unsigned32 (1..16)
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "Unique index for QoS profile"
+    ::= { hsgqQosProfileEntry 1 }
+
+hsgqQosProfileName OBJECT-TYPE
+    SYNTAX      SnmpAdminString (SIZE(1..32))
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION "Name of QoS profile"
+    ::= { hsgqQosProfileEntry 2 }
+
+hsgqQosProfilePriority OBJECT-TYPE
+    SYNTAX      Integer32 (0..7)
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION "Traffic priority level"
+    ::= { hsgqQosProfileEntry 3 }
+
+hsgqQosProfileMinBw OBJECT-TYPE
+    SYNTAX      Unsigned32 (0..10000000)
+    UNITS       "kbps"
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION "Minimum guaranteed bandwidth"
+    ::= { hsgqQosProfileEntry 4 }
+
+hsgqQosProfileMaxBw OBJECT-TYPE
+    SYNTAX      Unsigned32 (0..10000000)
+    UNITS       "kbps"
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION "Maximum allowed bandwidth"
+    ::= { hsgqQosProfileEntry 5 }
+
+hsgqQosProfileStatus OBJECT-TYPE
+    SYNTAX      RowStatus
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION "Row status for profile management"
+    ::= { hsgqQosProfileEntry 6 }
+
+-- QoS Application to ONUs
+hsgqQosOnuMapTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqQosOnuMapEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "Mapping of QoS profiles to ONUs"
+    ::= { hsgqQosProfiles 2 }
+
+hsgqQosOnuMapEntry OBJECT-TYPE
+    SYNTAX      HsgqQosOnuMapEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "QoS mapping entry"
+    INDEX       { ifIndex, hsgqOnuMacAddress }
+    ::= { hsgqQosOnuMapTable 1 }
+
+HsgqQosOnuMapEntry ::= SEQUENCE {
+    hsgqQosOnuProfileIndex     Unsigned32
+}
+
+hsgqQosOnuProfileIndex OBJECT-TYPE
+    SYNTAX      Unsigned32 (1..16)
+    MAX-ACCESS  read-create
+    STATUS      current
+    DESCRIPTION "QoS profile applied to ONU"
+    ::= { hsgqQosOnuMapEntry 1 }
+
+END
