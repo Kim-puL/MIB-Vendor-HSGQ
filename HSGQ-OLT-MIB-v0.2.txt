@@ -1,0 +1,280 @@
+HSGQ-COMPLETE-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    MODULE-IDENTITY, OBJECT-TYPE, NOTIFICATION-TYPE,
+    OBJECT-IDENTITY, enterprises, 
+    Integer32, Counter32, Gauge32, Unsigned32, TimeTicks,
+    IpAddress, MacAddress, TruthValue
+        FROM SNMPv2-SMI
+    TEXTUAL-CONVENTION, DisplayString, RowStatus
+        FROM SNMPv2-TC
+    ifIndex, InterfaceIndex, ifOperStatus
+        FROM IF-MIB
+    SnmpAdminString
+        FROM SNMP-FRAMEWORK-MIB;
+
+-- Vendor OID Base
+hsgq MODULE-IDENTITY
+    LAST-UPDATED "202508050000Z"  -- 5 Agustus 2025
+    ORGANIZATION "HSGQ Enterprises"
+    CONTACT-INFO
+        "HSGQ Technical Support
+         Email: support@hsgq.com
+         Phone: +86-25-12345678"
+    DESCRIPTION
+        "Comprehensive MIB for HSGQ OLT and ONU Management"
+    REVISION "202508050000Z"
+    DESCRIPTION "Complete integration of OLT and ONU features"
+    REVISION "202501010000Z"
+    DESCRIPTION "Initial version"
+    ::= { enterprises 50224 }  -- .1.3.6.1.4.1.50224
+
+-- Textual Conventions
+HsgqTemperature ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d-1"
+    STATUS      current
+    DESCRIPTION "Temperature in 0.1°C"
+    SYNTAX      Integer32 (-2730..10000)  -- -273.0°C to 100.0°C
+
+HsgqVoltage ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d-3"
+    STATUS      current
+    DESCRIPTION "Voltage in millivolts"
+    SYNTAX      Integer32 (0..50000)      -- 0V to 50V
+
+HsgqOpticalPower ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d-1"
+    STATUS      current
+    DESCRIPTION "Optical power in 0.1 dBm"
+    SYNTAX      Integer32 (-10000..10000) -- -100.0 dBm to +100.0 dBm
+
+HsgqOnuState ::= TEXTUAL-CONVENTION
+    STATUS      current
+    DESCRIPTION "Operational state of ONU"
+    SYNTAX      INTEGER {
+                    registering(1),
+                    operational(2),
+                    lost(3),
+                    deregistered(4)
+                }
+
+-- Main OID Structure
+hsgqSystem        OBJECT IDENTIFIER ::= { hsgq 1 }
+hsgqTraps         OBJECT IDENTIFIER ::= { hsgq 2 }
+hsgqOnuMgmt       OBJECT IDENTIFIER ::= { hsgq 3 }
+hsgqOptical       OBJECT IDENTIFIER ::= { hsgq 4 }
+hsgqQoS           OBJECT IDENTIFIER ::= { hsgq 5 }
+hsgqL2Switching   OBJECT IDENTIFIER ::= { hsgq 6 }
+hsgqVlan          OBJECT IDENTIFIER ::= { hsgq 7 }
+hsgqSecurity      OBJECT IDENTIFIER ::= { hsgq 8 }
+hsgqIgmp          OBJECT IDENTIFIER ::= { hsgq 9 }
+hsgqFirmware      OBJECT IDENTIFIER ::= { hsgq 10 }
+hsgqVoIP          OBJECT IDENTIFIER ::= { hsgq 11 }
+hsgqWiFi          OBJECT IDENTIFIER ::= { hsgq 12 }
+
+-- 1. System Monitoring
+hsgqSystemTemperature OBJECT-TYPE
+    SYNTAX      HsgqTemperature
+    UNITS       "0.1 Celsius"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Current system temperature"
+    ::= { hsgqSystem 1 }
+
+hsgqSystemVoltage OBJECT-TYPE
+    SYNTAX      HsgqVoltage
+    UNITS       "mV"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "System supply voltage"
+    ::= { hsgqSystem 2 }
+
+-- 2. Critical Event Traps
+hsgqPortStateChange NOTIFICATION-TYPE
+    OBJECTS     { ifIndex, ifOperStatus }
+    STATUS      current
+    DESCRIPTION "Interface operational state change"
+    ::= { hsgqTraps 1 }
+
+hsgqOnuRegistration NOTIFICATION-TYPE
+    OBJECTS     { ifIndex, hsgqOnuMacAddress }
+    STATUS      current
+    DESCRIPTION "ONU registration status changed"
+    ::= { hsgqTraps 2 }
+
+-- 3. ONU/ONT Management
+hsgqOnuTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqOnuEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "ONU management table"
+    ::= { hsgqOnuMgmt 1 }
+
+hsgqOnuEntry OBJECT-TYPE
+    SYNTAX      HsgqOnuEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "ONU entry"
+    INDEX       { ifIndex, hsgqOnuMacAddress }
+    ::= { hsgqOnuTable 1 }
+
+HsgqOnuEntry ::= SEQUENCE {
+    hsgqOnuMacAddress         MacAddress,
+    hsgqOnuState              HsgqOnuState,
+    hsgqOnuDistance           Unsigned32,
+    hsgqOnuRxPowerAtOlt       HsgqOpticalPower,
+    hsgqOnuTxPower            HsgqOpticalPower,
+    hsgqOnuRxPowerAtOnu       HsgqOpticalPower,
+    hsgqOnuVoltage            HsgqVoltage,
+    hsgqOnuRemoteControl      INTEGER,
+    hsgqOnuSoftwareVersion    DisplayString,
+    hsgqOnuPowerConsumption   Gauge32,
+    hsgqOnuSerialNumber       DisplayString
+}
+
+-- ONU Parameters
+hsgqOnuRemoteControl OBJECT-TYPE
+    SYNTAX      INTEGER { normal(1), reboot(2), factoryReset(3) }
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION "Remote control actions"
+    ::= { hsgqOnuEntry 8 }
+
+hsgqOnuPowerConsumption OBJECT-TYPE
+    SYNTAX      Gauge32
+    UNITS       "watts"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Power consumption"
+    ::= { hsgqOnuEntry 10 }
+
+-- 4. Optical Monitoring
+hsgqOpticalTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqOpticalEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "Optical parameters table"
+    ::= { hsgqOptical 1 }
+
+HsgqOpticalEntry ::= SEQUENCE {
+    hsgqOpticalTxPower        HsgqOpticalPower,
+    hsgqOpticalRxPower        HsgqOpticalPower,
+    hsgqOpticalBiasCurrent    Integer32,
+    hsgqOpticalTemperature    HsgqTemperature
+}
+
+hsgqOpticalBiasCurrent OBJECT-TYPE
+    SYNTAX      Integer32 (0..200000)
+    UNITS       "uA"
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Laser bias current"
+    ::= { hsgqOpticalEntry 3 }
+
+-- 5. QoS Configuration
+hsgqQosProfileTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqQosProfileEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "QoS profiles"
+    ::= { hsgqQoS 1 }
+
+HsgqQosProfileEntry ::= SEQUENCE {
+    hsgqQosProfileIndex        Unsigned32,
+    hsgqQosProfileName         SnmpAdminString,
+    hsgqQosProfilePriority     Integer32,
+    hsgqQosProfileMinBw        Unsigned32,
+    hsgqQosProfileMaxBw        Unsigned32
+}
+
+-- 6. VLAN Management
+hsgqVlanPortTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqVlanPortEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "VLAN port configuration"
+    ::= { hsgqVlan 1 }
+
+hsgqVlanPortMode OBJECT-TYPE
+    SYNTAX      INTEGER { access(1), trunk(2), hybrid(3) }
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION "VLAN port mode"
+    ::= { hsgqVlanPortEntry 1 }
+
+-- 7. VoIP Service Management
+hsgqVoipServiceTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqVoipServiceEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "VoIP service status"
+    ::= { hsgqVoIP 1 }
+
+hsgqVoipState OBJECT-TYPE
+    SYNTAX      INTEGER { disabled(1), registered(2), failed(3) }
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "VoIP registration state"
+    ::= { hsgqVoipServiceEntry 1 }
+
+-- 8. WiFi Management
+hsgqWifiConfigTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqWifiConfigEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "WiFi configuration"
+    ::= { hsgqWiFi 1 }
+
+hsgqWifiSsid OBJECT-TYPE
+    SYNTAX      SnmpAdminString
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION "WiFi SSID"
+    ::= { hsgqWifiConfigEntry 1 }
+
+-- 9. Firmware Management
+hsgqFirmwareVersion OBJECT-TYPE
+    SYNTAX      DisplayString
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Current firmware version"
+    ::= { hsgqFirmware 1 }
+
+hsgqFirmwareUpgrade OBJECT-TYPE
+    SYNTAX      INTEGER { idle(1), inProgress(2), success(3), failed(4) }
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION "Firmware upgrade status"
+    ::= { hsgqFirmware 2 }
+
+-- 10. Security Features
+hsgqOnuMacLimit OBJECT-TYPE
+    SYNTAX      Unsigned32
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION "Max MAC addresses per ONU"
+    ::= { hsgqSecurity 1 }
+
+hsgqOnuFirewallState OBJECT-TYPE
+    SYNTAX      TruthValue
+    MAX-ACCESS  read-write
+    STATUS      current
+    DESCRIPTION "Firewall enabled state"
+    ::= { hsgqSecurity 2 }
+
+-- 11. IGMP Snooping
+hsgqIgmpGroupTable OBJECT-TYPE
+    SYNTAX      SEQUENCE OF HsgqIgmpGroupEntry
+    MAX-ACCESS  not-accessible
+    STATUS      current
+    DESCRIPTION "IGMP multicast groups"
+    ::= { hsgqIgmp 1 }
+
+hsgqIgmpGroupAddress OBJECT-TYPE
+    SYNTAX      IpAddress
+    MAX-ACCESS  read-only
+    STATUS      current
+    DESCRIPTION "Multicast group address"
+    ::= { hsgqIgmpGroupEntry 1 }
+
+END
