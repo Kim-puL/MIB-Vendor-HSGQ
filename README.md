@@ -1,50 +1,99 @@
-Fitur Utama MIB:
+# 📡 HSGQ-MIB
 
-System Monitoring:
-Temperatur sistem (0.1°C)
-Voltage sistem (mV)
-Status redundansi
-Optical Monitoring:
-Tx/Rx Power (0.1 dBm)
-Transmit Bias Current (μA)
-Modul temperatur (0.1°C)
+MIB ini dirancang untuk perangkat **HSGQ-G02ID** dan mendukung pemantauan serta manajemen penuh untuk sistem GPON, ONU/ONT, dan layanan triple-play. Kompatibel dengan **Zabbix, LibreNMS, Nagios**, dan tools monitoring berbasis SNMP lainnya.
 
-ONU/ONT Management:
-Rx Power di OLT (dari ONU)
-Tx Power dari ONU
-Rx Power di ONU
-Voltage ONU (mV)
-Jarak ONU (meter)
-Status ONU (registrasi, operasional)
+---
 
-QoS Triple-Play:
-Profil VoIP, Video, Data
-Garansi bandwidth
-Prioritas traffic
-Mapping ke ONU spesifik
+## ✨ Fitur Utama
 
-Critical Event Traps:
-Perubahan status port
-Suhu melebihi threshold
-Failover OLT
+### 🖥️ System Monitoring
+- Temperatur sistem (`0.1°C`)
+- Tegangan sistem (mV)
+- Konsumsi daya
 
-Cara Penggunaan:
-Simpan file sebagai HSGQ-OLT-MIB.mib
-Gunakan dengan SNMP manager (Zabbix, Nagios, LibreNMS)
+### 🔍 Optical Monitoring
+- Tx/Rx Power (`0.1 dBm`)
+- Transmit Bias Current (`μA`)
+- Temperatur modul optik
 
-Contoh OID:
-Temperatur: .1.3.6.1.4.1.50224.1.1
-Voltage: .1.3.6.1.4.1.50224.1.3
-ONU Tx Power: .1.3.6.1.4.1.50224.4.1.1.6
+### 👨‍💼 ONU/ONT Management
+- Status registrasi ONU
+- Remote reboot & factory reset
+- Pemantauan parameter optik per ONU
+- Manajemen versi software
+- Serial number tracking
 
-Contoh SNMP Get:
-bash
-# Get system temperature (0.1°C)
-snmpget -v2c -c public olt-ip .1.3.6.1.4.1.50224.1.1.0
+### ⚙️ QoS Triple-Play
+- Profil VoIP, Video, dan Data
+- Jaminan bandwidth minimum/maksimum
+- Prioritas lalu lintas
 
-# Get ONU Tx Power (0.1 dBm)
-snmpget -v2c -c public olt-ip .1.3.6.1.4.1.50224.4.1.1.6.1.4C5E0CC5EF56
+### 🧩 Layanan Tambahan
+- Pemantauan status VoIP
+- Manajemen WiFi (SSID, channel)
+- IGMP snooping untuk IPTV
+- Konfigurasi VLAN
 
-# Get optical Rx power on port 1
-snmpget -v2c -c public olt-ip .1.3.6.1.4.1.50224.5.1.1.2.1
-File MIB ini siap diimplementasikan pada perangkat HSGQ OLT dan kompatibel dengan semua sistem manajemen jaringan standar.
+### 🔐 Keamanan
+- Limitasi MAC address
+- Status firewall
+- Keamanan port (port security)
+
+### 🔄 Firmware Management
+- Versi firmware
+- Status upgrade
+- Manajemen firmware terpusat
+
+### 🚨 Critical Event Traps
+- Perubahan status port
+- Registrasi/deregistrasi ONU
+- Suhu melebihi ambang batas (threshold)
+
+---
+
+## 📦 Cara Penggunaan
+
+1. **Download file MIB**  
+   [`📥 HSGQ-COMPLETE-MIB.mib`](#)
+
+2. **Contoh Implementasi SNMP**
+   ```bash
+   # 🔁 Reboot ONU tertentu
+   snmpset -v2c -c private olt-ip .1.3.6.1.4.1.50224.3.1.1.8.1.4C5E0CC5EF56 i 2
+
+   # 🌡️ Baca temperatur ONU
+   snmpget -v2c -c public olt-ip .1.3.6.1.4.1.50224.4.1.1.4.1.4C5E0CC5EF56
+
+   # 🚀 Set bandwidth ONU
+   snmpset -v2c -c private olt-ip .1.3.6.1.4.1.50224.5.1.1.4.1.4C5E0CC5EF56 u 1000000
+   ```
+
+---
+
+## 🧭 Struktur OID
+
+```
+.1.3.6.1.4.1.50224 (hsgq)
+├── 1  - system         : System monitoring
+├── 2  - traps          : Critical event notifications
+├── 3  - onuMgmt        : ONU/ONT management
+├── 4  - optical        : Optical parameters
+├── 5  - qos            : Quality of Service
+├── 6  - l2switching    : MAC address tables
+├── 7  - vlan           : VLAN configuration
+├── 8  - security       : Security features
+├── 9  - igmp           : Multicast management
+├── 10 - firmware       : Firmware management
+├── 11 - voip           : VoIP service status
+└── 12 - wifi           : WiFi management
+```
+
+---
+
+## 🧩 Kompatibilitas
+
+File MIB ini kompatibel dengan:
+- [x] LibreNMS
+- [x] Zabbix
+- [x] Nagios
+- [x] Semua tools berbasis SNMP v2c
